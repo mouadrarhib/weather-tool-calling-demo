@@ -100,10 +100,6 @@ messages.append(message.model_dump(exclude_none=True))
 
 if message.tool_calls:
     for call in message.tool_calls:
-        tool_request = {
-            "name": call.function.name,
-            "arguments": json.loads(call.function.arguments),
-        }
 
         result = handle_tool_request(
             call.function.name,
