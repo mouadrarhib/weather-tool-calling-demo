@@ -3,10 +3,10 @@
 A Python learning project covering two AI application workflows:
 
 1. A real LLM requesting a validated weather tool through OpenRouter.
-2. A RAG prototype that retrieves sample policy passages and generates
-   answers supported by that evidence.
+2. A RAG prototype that reads a local policy file, retrieves relevant chunks,
+   and generates answers supported by that evidence.
 
-Weather data and document passages are sample data.
+Weather data is fixed sample data. The rental policy is fictional.
 Model API calls and locally generated embeddings are real.
 
 ## Learning Source
@@ -16,7 +16,7 @@ Built while studying
 
 The weather function is loaded from the curriculum repository.
 The practice code adds validation, dispatching, tests, live model integration,
-semantic retrieval, and a small retrieval evaluation.
+document ingestion, semantic retrieval, and a small retrieval evaluation.
 
 ## Requirements
 
@@ -32,13 +32,15 @@ Embedding model inference runs on the CPU.
 
 | File | Purpose |
 |---|---|
-| `lesson.py` | Weather input validation, JSON parsing, and tool dispatching |
+| `lesson.py` | Weather validation, JSON parsing, and tool dispatching |
 | `test_lesson.py` | Seven automated tests for tool handling |
 | `live_weather.py` | Real model integration with the weather tool |
 | `semantic_search_practice.py` | Filtering and distance using invented vectors |
 | `real_embeddings.py` | Real embeddings and cosine-similarity examples |
-| `filtered_semantic_search.py` | Metadata filtering and semantic retrieval |
-| `evaluate_retrieval.py` | Nine manually labelled retrieval checks |
+| `data/rental_policy.txt` | Fictional rental policy used as the document source |
+| `document_ingestion.py` | Reads the policy file and creates section-based chunks |
+| `filtered_semantic_search.py` | Metadata filtering and semantic retrieval over chunks |
+| `evaluate_retrieval.py` | Ten manually labelled retrieval checks |
 | `rag_demo.py` | Evidence-based answer generation through OpenRouter |
 | `.env.example` | API-key configuration template |
 | `.gitignore` | Excludes credentials, environments, and local artifacts |
@@ -59,7 +61,7 @@ git clone https://github.com/rohitg00/ai-engineering-from-scratch.git
 ```
 
 The curriculum clone is required by `lesson.py`, which loads its sample
-weather function.
+weather function. The document-retrieval scripts read the local policy file.
 
 Expected structure:
 
@@ -69,9 +71,12 @@ weather-tool-calling-demo/
 ├── lesson.py
 ├── test_lesson.py
 ├── live_weather.py
+├── document_ingestion.py
 ├── filtered_semantic_search.py
 ├── evaluate_retrieval.py
 ├── rag_demo.py
+├── data/
+│   └── rental_policy.txt
 ├── .env.example
 └── ai-engineering-from-scratch/
 ```
@@ -97,6 +102,8 @@ For local CPU embeddings and semantic search:
 python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 python -m pip install sentence-transformers
 ```
+
+Text-file ingestion uses Python's standard library.
 
 ### 5. Configure OpenRouter
 
@@ -205,6 +212,72 @@ All seven tests passed in the demonstrated local run.
 Model-provider error handlers have been syntax-checked but are not yet
 covered by automated mock tests.
 
+## Document Ingestion and Chunking
+
+### Source Document
+
+The RAG prototype reads:
+
+```text
+data/rental_policy.txt
+```
+
+This is a fictional policy created for the exercise. It contains three sections:
+
+- Cancellation
+- Vehicle maintenance
+- Pickup requirements
+
+### Run the Loader
+
+```bash
+python document_ingestion.py
+```
+
+The reusable `load_policy_chunks()` function:
+
+1. Reads the file as UTF-8 text.
+2. Splits sections at blank lines.
+3. Keeps each heading with its section.
+4. Assigns a chunk ID, source filename, location, and status.
+5. Returns a list of chunk dictionaries.
+
+Example chunk:
+
+```python
+{
+    "id": "rental-policy-01",
+    "text": "CANCELLATION\n...",
+    "source": "rental_policy.txt",
+    "location": "Casablanca",
+    "status": "active",
+}
+```
+
+The current file produces:
+
+| Chunk ID | Section |
+|---|---|
+| `rental-policy-01` | Cancellation |
+| `rental-policy-02` | Vehicle maintenance |
+| `rental-policy-03` | Pickup requirements |
+
+Location and status are assigned by the loader's parameters.
+They are not extracted from the document.
+
+The cancellation section keeps the fee and its timing conditions together:
+
+- Cancellation is free at least 24 hours before pickup.
+- Cancellation less than 24 hours before pickup costs 100 MAD.
+
+### Current Splitter Scope
+
+The splitter uses blank lines and suits this small, structured sample.
+It does not yet enforce token limits, add overlap, or handle large sections,
+complex tables, or multiple document formats.
+
+Chunk IDs are based on section order and may change if sections are reordered.
+
 ## Embeddings and Semantic Search
 
 ### Embedding Model
@@ -247,19 +320,22 @@ python filtered_semantic_search.py
 
 Retrieval:
 
-1. Loads the embedding model.
-2. Prepares document embeddings once per running process.
-3. Filters document candidates by location and active status.
-4. Generates an embedding for the question.
-5. Compares it with eligible document vectors.
-6. Returns the highest-ranked passage if it meets the similarity threshold.
+1. Loads chunks from `data/rental_policy.txt`.
+2. Loads the embedding model.
+3. Prepares chunk embeddings once per running process.
+4. Filters candidates by location and active status.
+5. Generates an embedding for the question.
+6. Compares it with eligible chunk vectors.
+7. Returns the highest-ranked chunk if it meets the similarity threshold.
 
-The result includes the passage ID, text, source label, and similarity score.
+The result includes the chunk ID, text, source filename, and similarity score.
 
-Document embeddings stay in memory. They are not persisted to a vector database.
-Restarting the program loads the model and recomputes document embeddings.
+Embeddings stay in memory. They are not persisted to a vector database.
+Restarting the program reloads the document and recomputes its embeddings.
 
-Document or embedding-model changes require rebuilding the corresponding vectors.
+Editing the file while the process is running does not automatically refresh
+the prepared chunks or vectors. Reload them after document changes.
+Changing the embedding model also requires rebuilding the corresponding vectors.
 
 ## RAG Prototype
 
@@ -269,8 +345,12 @@ then provide it to a model when generating an answer.
 ### Workflow
 
 ```text
-Question
-→ filter applicable documents
+Local policy file
+→ section-based chunks
+→ chunk embeddings prepared in memory
+
+User question
+→ filter applicable chunks
 → compare embeddings
 → select relevant evidence
 → send question and evidence to the LLM
@@ -288,46 +368,53 @@ Change `question` in `rag_demo.py` to try another question.
 When evidence is selected, the script makes one OpenRouter model request.
 When retrieval returns `None`, it skips answer generation.
 
-### Demonstrated Answerable Question
-
-Question:
-
-> How can I cancel my booking?
-
-Evidence:
-
-> You can cancel your reservation from your account.
-
-Observed result: an answer supported by that passage, citing
-`casablanca-active.pdf` and passage ID `policy-01`.
-
-### Demonstrated Missing Information
+### Demonstrated Supported Answer
 
 Question:
 
 > What is the cancellation fee?
 
-The same passage is relevant to cancellation but contains no fee amount.
+Retrieved evidence includes both the free-cancellation period and fee.
 
-Observed result: the model acknowledged that the supplied evidence
-does not specify the fee.
+Observed answer:
+
+- Free if cancelled at least 24 hours before pickup.
+- 100 MAD if cancelled less than 24 hours before pickup.
+
+The answer cited `rental_policy.txt`, chunk `rental-policy-01`.
+
+The earlier cancellation-method example also produced a supported answer
+explaining that cancellation is available from the customer's account.
+
+### Demonstrated Missing Information
+
+Question:
+
+> Is the cancellation fee refundable?
+
+The cancellation chunk is relevant and specifies the fee, but says nothing
+about refundability.
+
+Observed result: the model explained that refundability was unspecified,
+without inventing a refund rule, and cited the retrieved chunk.
 
 Relevance and answerability are separate.
-A related passage does not necessarily support an answer.
+A related chunk does not necessarily support the requested answer.
 
 ### No-Evidence Behaviour
 
-For an unrelated question, such as:
-
-> How do I bake a chocolate cake?
-
-Retrieval rejects the low-similarity result and the script displays:
+For unrelated questions, retrieval can reject low-similarity candidates.
+When retrieval returns `None`, the script displays:
 
 ```text
 No sufficiently relevant evidence was found in the applicable documents.
 ```
 
 No OpenRouter request is made on this path.
+
+This behaviour was demonstrated with an unrelated cooking question before
+the move to file-based chunks. The updated local retrieval evaluation also
+checks unrelated cooking and geography questions.
 
 ## Retrieval Evaluation
 
@@ -339,29 +426,48 @@ python evaluate_retrieval.py
 
 This evaluation runs locally without calling OpenRouter.
 
-### Dataset
+### Current Dataset
 
-Nine manually labelled cases cover:
+Ten manually labelled cases cover:
 
 - Cancellation questions with different wording
 - Vehicle maintenance questions
-- A location with no applicable documents
-- A cancellation-fee question whose answer is missing
+- A location with no applicable chunks
+- The cancellation fee, now supported by the document
+- Fee refundability, which remains unspecified
 - Unrelated geography and cooking questions
 
-Each case records an expected passage ID or `None`.
+Each case records an expected chunk ID or `None`.
 The `answer_supported` field records a human-assigned expectation about
-whether the applicable sample documents contain the answer.
+whether the applicable document contains enough information to answer.
 
 ### Observed Results
 
-All nine passage-selection checks passed in the demonstrated run.
+All ten chunk-selection checks passed against the text-file chunks,
+with the existing threshold unchanged.
 
-Three additional questions were tested without changing the threshold.
-This remains a tiny development evaluation, not evidence of general reliability.
+Example observed similarities:
+
+| Question | Selected chunk | Similarity |
+|---|---|---:|
+| How can I cancel my booking? | `rental-policy-01` | 0.727 |
+| What is the cancellation fee? | `rental-policy-01` | 0.696 |
+| Are the cars maintained regularly? | `rental-policy-02` | 0.451 |
+| Is the cancellation fee refundable? | `rental-policy-01` | 0.666 |
+
+The refundability question has a relatively high relevance score,
+but the chunk does not contain its answer.
 
 PASS means the retrieved ID matches the expected ID, or both are `None`.
-It does not mean an LLM answer was checked for correctness.
+It does not mean an LLM answer was automatically checked for correctness.
+
+The earlier 9/9 result evaluated the previous hard-coded sample passages.
+The current 10/10 result evaluates the file-based chunks.
+These are different dataset versions and are not directly comparable
+as a measure of improvement.
+
+The evaluation is small and development-oriented.
+It does not establish general RAG reliability.
 
 ### Similarity Threshold
 
@@ -373,30 +479,42 @@ min_similarity=0.3
 
 It returns `None` when:
 
-- No documents match the metadata filters, or
+- No chunks match the metadata filters, or
 - The highest similarity is below the threshold.
 
-The threshold was selected using a small development sample.
-It is not a universal cutoff and requires broader evaluation.
+The threshold was originally selected using the earlier sample passages.
+It remained unchanged for the file-based evaluation.
 
-The cancellation-fee question can remain above the threshold while
-still lacking enough evidence for an answer.
+It is not a universal cutoff and requires broader evaluation.
+Similarity does not establish answer completeness or correctness.
 
 ## Limitations and Pending Work
 
 - Weather information is fixed sample data, not a live forecast.
-- Documents are hard-coded sample passages.
-- PDF filenames are source labels; actual PDFs are not loaded or parsed.
-- Retrieval returns at most one passage.
+- The rental policy is fictional and stored in one local text file.
+- PDF extraction has not been implemented.
+- Chunking relies on blank lines and has no token-size limit or overlap.
+- Location and status are assigned metadata, not extracted facts.
+- Chunk IDs depend on section order.
+- The current retrieval evaluation does not directly test pickup requirements.
+- Retrieval returns at most one chunk.
 - The provisional similarity threshold needs broader evaluation.
-- Embeddings are stored in memory rather than persisted in a database.
-- The sample embedding model is primarily intended for English.
+- Embeddings are held in memory rather than persisted in a database.
+- The embedding model is primarily intended for English.
 - Citations and factual support are prompted, not automatically verified.
-- The nine retrieval checks do not evaluate generated-answer quality.
-- End-to-end RAG automated tests remain pending.
+- Retrieval checks do not automatically evaluate generated-answer quality.
+- Automated ingestion tests and end-to-end RAG tests remain pending.
 - RAG provider-error handling remains pending.
 - Weather model-provider error handlers still need automated mock tests.
 - Free-provider availability, rate limits, and model selection can vary.
 - The weather implementation supports one tool-execution round followed
   by a final model response, not an unrestricted agent loop.
 - Runtime dependencies and the curriculum revision are not pinned.
+
+## Next Steps
+
+- Add PDF text extraction while preserving source and page metadata.
+- Evaluate retrieval for pickup requirements and additional question types.
+- Add focused ingestion and answer-generation tests.
+- Improve chunking and evaluate its effect on retrieval.
+- Add persistent vector storage when the document collection grows.
