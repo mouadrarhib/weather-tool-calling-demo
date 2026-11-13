@@ -1,127 +1,94 @@
-# Weather Tool-Calling Demo
+## Semantic Search and RAG Prototype
 
-A Python learning project that connects a real LLM through OpenRouter
-to a validated weather tool.
+This project also includes a small retrieval-augmented generation (RAG)
+prototype over sample rental-policy passages.
 
-The LLM calls are real. Weather information comes from the fixed sample
-database in the AI Engineering from Scratch curriculum.
+### How it works
 
-## How it works
+1. Load a local embedding model.
+2. Generate document embeddings once per running process.
+3. Filter documents by location and active status.
+4. Embed the user's question.
+5. Rank eligible passages by cosine similarity.
+6. Send the highest-ranked passage and its source to an LLM.
+7. Generate an evidence-supported answer or acknowledge missing information.
 
-1. Send the user question and tool definition to the model.
-2. Receive a tool request containing a name and JSON arguments.
-3. Parse and validate the request.
-4. Clean the city name and execute the weather lookup.
-5. Send the tool result back with its matching tool_call_id.
-6. Ask the model to explain the result.
+Higher cosine similarity ranks first. A high score indicates relevance,
+not a guarantee that the passage answers the question.
 
-## Files
+### Files
 
-- `lesson.py`: input validation, JSON parsing, and tool dispatching.
-- `test_lesson.py`: seven automated tests.
-- `live_weather.py`: OpenRouter integration and conversation handling.
-- `.env.example`: API-key configuration template.
+| File | Purpose |
+|---|---|
+| `semantic_search_practice.py` | Learn filtering and Euclidean distance using invented vectors |
+| `real_embeddings.py` | Generate real embeddings and compare passage similarity |
+| `filtered_semantic_search.py` | Filter sample documents and retrieve the highest-ranked passage |
+| `rag_demo.py` | Generate an answer from retrieved evidence through OpenRouter |
 
-## Requirements
+### Additional Setup
 
-- Python 3.10 or newer
-- Git
-- An OpenRouter API key
-- Internet access for model requests
-
-## Setup
-
-Clone this project and enter its directory. Then clone the curriculum
-into the project folder:
+With the virtual environment activated, install CPU-only PyTorch and
+Sentence Transformers:
 
 ```bash
-git clone https://github.com/rohitg00/ai-engineering-from-scratch.git
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+python -m pip install sentence-transformers
 ```
 
-The expected structure is:
+The embedding model is:
 
 ```text
-project/
-├── lesson.py
-├── test_lesson.py
-├── live_weather.py
-└── ai-engineering-from-scratch/
+sentence-transformers/all-MiniLM-L6-v2
 ```
 
-Create and activate a virtual environment:
+It generates 384-dimensional embeddings locally on the CPU.
+The first run downloads the model from Hugging Face.
+
+Local embedding generation does not require an API key.
+Answer generation uses the OpenRouter key in `.env`.
+
+### Run Semantic Search
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install openai python-dotenv
+python filtered_semantic_search.py
 ```
 
-Create a `.env` file beside `live_weather.py`:
+This runs two example questions without calling OpenRouter.
 
-```dotenv
-OPENROUTER_API_KEY=your_key_here
-```
-
-Replace the placeholder locally. Never commit the real key.
-
-## Run
-
-Run the local examples without model API calls:
+### Run the RAG Demo
 
 ```bash
-python lesson.py
+python rag_demo.py
 ```
 
-Run the real model integration:
+Change `question` in `rag_demo.py` to try another question.
+Each successful answer-generation attempt makes one model request.
 
-```bash
-python live_weather.py
-```
+### Demonstrated Scenarios
 
-Change the user question in the shared `messages` list to try another city.
+**Answerable question**
 
-## Tests
+- Question: “How can I cancel my booking?”
+- Evidence: “You can cancel your reservation from your account.”
+- Observed result: an answer supported by the passage, with its source and ID.
 
-```bash
-python -m unittest -v test_lesson
-```
+**Missing information**
 
-Seven tests cover:
+- Question: “What is the cancellation fee?”
+- Evidence: the same cancellation passage, which contains no fee.
+- Observed result: the model explained that the fee information was missing.
 
-- Missing arguments
-- Unknown tools
-- Blank cities without executing the lookup
-- City cleaning and exactly one lookup call
-- Simulated weather connection failure
-- Malformed argument JSON
-- Arguments that parse as a list instead of a dictionary
+These manual examples demonstrate the workflow; they are not a full
+evaluation of answer reliability.
 
-Tests use mocks and do not call the model API.
+### RAG Limitations
 
-## Error handling
-
-The dispatcher returns structured errors with stable codes.
-The live integration handles model rate limits, connection failures,
-and timeouts around both model calls.
-
-Provider-error handlers have been syntax-checked but are not yet
-covered by automated mock tests.
-
-## Limitations
-
-- Weather data is sample data, not a live forecast.
-- Free-model availability and rate limits may interrupt requests.
-- The free router may select different models between runs.
-- This implementation supports one tool-execution round followed by
-  a final model response.
-- Prompt instructions do not guarantee correct model behaviour.
-- Runtime dependencies and the curriculum revision are not pinned yet.
-
-## Learning source
-
-Built while studying
-[AI Engineering from Scratch](https://github.com/rohitg00/ai-engineering-from-scratch).
-
-The weather implementation is loaded from that repository.
-The surrounding practice code adds validation, dispatching, tests,
-and a live model integration.
+- Documents are hard-coded sample passages.
+- PDF filenames are source labels; actual PDFs are not loaded or parsed.
+- Retrieval selects one passage even when none adequately answers the question.
+- The embedding model is intended primarily for English text.
+- Embeddings are held in memory, not persisted in a database.
+- Restarting the program reloads the model and recomputes document embeddings.
+- Document changes during execution require rebuilding the prepared embeddings.
+- Citations and factual support are prompted, not automatically verified.
+- RAG-specific automated tests and provider-error handling remain pending.
