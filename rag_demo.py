@@ -24,11 +24,11 @@ client = OpenAI(
     timeout=60.0,
 )
 
-question = "What is the cancellation fee?"
+question = "How do I bake a chocolate cake?"
 passage = retrieve_passage(question)
 
 if passage is None:
-    print("No applicable documents found.")
+    print("No sufficiently relevant evidence was found in the applicable documents.")
 else:
     print("Retrieved evidence:", passage["text"])
     print("Source:", passage["source"])

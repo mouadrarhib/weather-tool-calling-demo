@@ -42,7 +42,7 @@ document_embeddings = model.encode([
 ])
 
 
-def retrieve_passage(question, location="Casablanca"):
+def retrieve_passage(question, location="Casablanca", min_similarity=0.3,):
     # Keep the positions of documents that apply.
     eligible_indices = [
         index
@@ -65,12 +65,15 @@ def retrieve_passage(question, location="Casablanca"):
     best_position = int(scores.argmax())
     document_index = eligible_indices[best_position]
     best_document = documents[document_index]
+    best_score = float(scores[best_position])
+    if best_score < min_similarity:
+        return None
 
     return {
         "id": best_document["id"],
         "text": best_document["text"],
         "source": best_document["source"],
-        "similarity": float(scores[best_position]),
+        "similarity": best_score,
     }
 
 
