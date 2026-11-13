@@ -24,7 +24,7 @@ client = OpenAI(
     timeout=60.0,
 )
 
-question = "How do I bake a chocolate cake?"
+question = "Is the cancellation fee refundable?"
 passage = retrieve_passage(question)
 
 if passage is None:
@@ -45,7 +45,7 @@ else:
                     "If the evidence does not answer the question, "
                     "clearly explain what information is missing. "
                     "Cite the supplied source and passage ID for supported claims. "
-                    "These are sample passages; no actual PDF was read."
+                    "The evidence comes from a local text file containing fictional policies for this exercise."
                 ),
             },
             {

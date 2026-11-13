@@ -4,19 +4,19 @@ test_cases = [
     {
         "question": "How can I cancel my booking?",
         "location": "Casablanca",
-        "expected_id": "policy-01",
+        "expected_id": "rental-policy-01",
         "answer_supported": True,
     },
     {
         "question": "Where can I cancel my reservation?",
         "location": "Casablanca",
-        "expected_id": "policy-01",
+        "expected_id": "rental-policy-01",
         "answer_supported": True,
     },
     {
         "question": "Do your vehicles receive regular maintenance?",
         "location": "Casablanca",
-        "expected_id": "policy-04",
+        "expected_id": "rental-policy-02",
         "answer_supported": True,
     },
     {
@@ -28,8 +28,8 @@ test_cases = [
     {
         "question": "What is the cancellation fee?",
         "location": "Casablanca",
-        "expected_id": "policy-01",
-        "answer_supported": False,
+        "expected_id": "rental-policy-01",
+        "answer_supported": True,
     },
     {
         "question": "What is the capital of Japan?",
@@ -40,19 +40,25 @@ test_cases = [
     {
         "question": "I need to cancel my reservation. Where do I do that?",
         "location": "Casablanca",
-        "expected_id": "policy-01",
+        "expected_id": "rental-policy-01",
         "answer_supported": True,
     },
     {
         "question": "Are the cars maintained regularly?",
         "location": "Casablanca",
-        "expected_id": "policy-04",
+        "expected_id": "rental-policy-02",
         "answer_supported": True,
     },
     {
         "question": "How do I bake a chocolate cake?",
         "location": "Casablanca",
         "expected_id": None,
+        "answer_supported": False,
+    },
+    {
+        "question": "Is the cancellation fee refundable?",
+        "location": "Casablanca",
+        "expected_id": "rental-policy-01",
         "answer_supported": False,
     },
 ]

@@ -1,35 +1,8 @@
 from sentence_transformers import SentenceTransformer
+from document_ingestion import load_policy_chunks
 
-documents = [
-    {
-        "id": "policy-01",
-        "text": "You can cancel your reservation from your account.",
-        "source": "casablanca-active.pdf",
-        "location": "Casablanca",
-        "status": "active",
-    },
-    {
-        "id": "policy-02",
-        "text": "Cancel your booking by contacting the old support number.",
-        "source": "casablanca-expired.pdf",
-        "location": "Casablanca",
-        "status": "expired",
-    },
-    {
-        "id": "policy-03",
-        "text": "Cancel your booking at our Marrakech office.",
-        "source": "marrakech-active.pdf",
-        "location": "Marrakech",
-        "status": "active",
-    },
-    {
-        "id": "policy-04",
-        "text": "Our vehicles receive regular maintenance.",
-        "source": "casablanca-maintenance.pdf",
-        "location": "Casablanca",
-        "status": "active",
-    },
-]
+
+documents = load_policy_chunks()
 
 # Prepare the model and document vectors once when this module loads.
 model = SentenceTransformer(
