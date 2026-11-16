@@ -1,17 +1,23 @@
 from sentence_transformers import SentenceTransformer
+
+from embedding_cache import load_or_create_embeddings
 from pdf_ingestion import load_pdf_chunks
+
+
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 documents = load_pdf_chunks()
 
-# Prepare the model and document vectors once when this module loads.
 model = SentenceTransformer(
-    "sentence-transformers/all-MiniLM-L6-v2",
+    MODEL_NAME,
     device="cpu",
 )
 
-document_embeddings = model.encode([
-    document["text"] for document in documents
-])
+document_embeddings = load_or_create_embeddings(
+    model,
+    documents,
+    MODEL_NAME,
+)
 
 
 def retrieve_passage(question, location="Casablanca", min_similarity=0.3,):
