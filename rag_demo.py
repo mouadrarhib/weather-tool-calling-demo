@@ -24,7 +24,7 @@ client = OpenAI(
     timeout=60.0,
 )
 
-question = "Is the cancellation fee refundable?"
+question = "What is the cancellation fee?"
 passage = retrieve_passage(question)
 
 if passage is None:
@@ -32,6 +32,7 @@ if passage is None:
 else:
     print("Retrieved evidence:", passage["text"])
     print("Source:", passage["source"])
+    print("Page:", passage["page"])
 
     response = client.chat.completions.create(
         model="openrouter/free",
@@ -46,6 +47,9 @@ else:
                     "clearly explain what information is missing. "
                     "Cite the supplied source and passage ID for supported claims. "
                     "The evidence comes from a local text file containing fictional policies for this exercise."
+                    "These are fictional practice policies extracted from a local PDF. "
+                    "Cite the supplied filename, page number, and passage ID "
+                    "for supported claims. "
                 ),
             },
             {
@@ -54,6 +58,7 @@ else:
                     f"Question: {question}\n\n"
                     f"Evidence:\n{passage['text']}\n\n"
                     f"Source: {passage['source']}\n"
+                    f"Page: {passage['page']}\n"
                     f"Passage ID: {passage['id']}"
                 ),
             },

@@ -1,8 +1,7 @@
 from sentence_transformers import SentenceTransformer
-from document_ingestion import load_policy_chunks
+from pdf_ingestion import load_pdf_chunks
 
-
-documents = load_policy_chunks()
+documents = load_pdf_chunks()
 
 # Prepare the model and document vectors once when this module loads.
 model = SentenceTransformer(
@@ -46,6 +45,7 @@ def retrieve_passage(question, location="Casablanca", min_similarity=0.3,):
         "id": best_document["id"],
         "text": best_document["text"],
         "source": best_document["source"],
+        "page": best_document["page"],
         "similarity": best_score,
     }
 
